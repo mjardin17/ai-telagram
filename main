@@ -1,0 +1,43 @@
+# ============================================
+# BOT THAT DEPLOYS THE EMPIRE
+# ============================================
+
+import os, json, subprocess, requests
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
+
+TOKEN = "8832028312:AAHmP09JIp4jYo0sVK2q0JJBokWzoxjI_SE"
+
+# ============================================
+# THE EMPIRE FILES
+# ============================================
+FILES = {
+    "main.py": "import os, requests, asyncio, json, time\nfrom telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup\nfrom telegram.ext import Application, CommandHandler, CallbackQueryHandler\n\nTOKEN = os.getenv('TELEGRAM_BOT_TOKEN', '8832028312:AAHmP09JIp4jYo0sVK2q0JJBokWzoxjI_SE')\n\nasync def start(update, context):\n    keyboard = [[InlineKeyboardButton('🚀 Run Empire', callback_data='run')]]\n    await update.message.reply_text('🤖 AI Empire Bot', reply_markup=InlineKeyboardMarkup(keyboard))\n\napp = Application.builder().token(TOKEN).build()\napp.add_handler(CommandHandler('start', start))\napp.run_polling()",
+    "requirements.txt": "python-telegram-bot==20.7\nrequests==2.31.0",
+    "Procfile": "web: python main.py",
+    "render.yaml": "services:\n  - type: web\n    name: ai-empire\n    env: python\n    buildCommand: pip install -r requirements.txt\n    startCommand: python main.py"
+}
+
+async def deploy(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Create all files and send them as a zip"""
+    await update.message.reply_text("📦 Building your empire files...")
+    
+    import zipfile, io
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
+        for name, content in FILES.items():
+            zf.writestr(name, content)
+    
+    zip_buffer.seek(0)
+    await update.message.reply_document(document=zip_buffer, filename='empire_files.zip')
+
+async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    await deploy(update, context)
+
+app = Application.builder().token(TOKEN).build()
+app.add_handler(CommandHandler("deploy", deploy))
+app.add_handler(CommandHandler("start", start))
+app.add_handler(CallbackQueryHandler(button))
+app.run_polling()
